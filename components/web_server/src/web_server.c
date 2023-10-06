@@ -49,6 +49,7 @@ static char *s_web_redirect_url = NULL;
 #endif
 
 #include "esp_bridge.h"
+#include "sdkconfig.h"
 
 #define BRIDGE_WEB_SERVER_CHECK(a, str, goto_tag, ...)                                              \
     do                                                                                 \
@@ -103,6 +104,11 @@ typedef struct {
     uint8_t password[65];
 } wifi_sta_connect_config_t;
 
+typedef struct {
+    uint8_t ssid[33];
+    uint8_t password[65];
+} wifi_ap_config_t;
+
 typedef enum {
     BRIDGE_WIFI_STA_NOT_START = 0x0,
     BRIDGE_WIFI_STA_CONFIG_DONE = 0x1,
@@ -130,6 +136,7 @@ static httpd_handle_t s_server = NULL;
 static int32_t s_web_wifi_reconnect_timeout = BRIDGE_WEB_WIFI_MAX_RECONNECT_TIMEOUT;
 static wifi_sta_connection_info_t s_wifi_sta_connection_info = { 0 };
 static wifi_sta_connect_config_t s_wifi_sta_connect_config = { 0 };
+static wifi_ap_config_t s_wifi_ap_config = { 0 };
 static TimerHandle_t s_wifi_sta_connect_timer_handler = NULL;
 static EventGroupHandle_t s_wifi_sta_connect_event_group = NULL;
 static uint8_t s_mobile_phone_mac[6] = { 0 };
@@ -888,6 +895,28 @@ static void esp_web_response_error(httpd_req_t *req, const char *status)
     httpd_resp_send(req, temp_str, strlen(temp_str));
 }
 
+static void esp_web_update_ap_config(wifi_ap_config_t *ap_conf)
+{
+    memcpy(&s_wifi_ap_config, ap_conf, sizeof(wifi_ap_config_t));
+}
+
+static wifi_ap_config_t esp_web_get_ap_config(void)
+{
+    wifi_ap_config_t *ap_config = &s_wifi_ap_config;
+    memset(ap_config, 0, sizeof(wifi_ap_config_t));
+
+    // 将全局变量中的值复制到配置结构体中
+    strncpy((char *)ap_config->ssid, CONFIG_BRIDGE_SOFTAP_SSID, sizeof(ap_config->ssid) - 1);
+    strncpy((char *)ap_config->password, CONFIG_BRIDGE_SOFTAP_PASSWORD, sizeof(ap_config->password) - 1);
+
+    return ap_config;
+}
+
+static void esp_web_clear_ap_config(void)
+{
+    memset(&s_wifi_ap_config, 0x0, sizeof(wifi_ap_config_t));
+}
+
 static void esp_web_update_sta_connect_config(wifi_sta_connect_config_t *connect_conf)
 {
     memcpy(&s_wifi_sta_connect_config, connect_conf, sizeof(wifi_sta_connect_config_t));
@@ -1339,6 +1368,8 @@ static esp_err_t config_wifi_get_handler(httpd_req_t *req)
 {
     wifi_sta_connect_config_t *connect_config = esp_web_get_sta_connect_config();
     wifi_sta_connection_info_t *connection_info = esp_web_get_sta_connection_info();
+    wifi_ap_config_t *ap_config = esp_web_get_ap_config();  // 获取 AP 配置信息
+
     char temp_str[32] = { 0 };
     int32_t json_len = 0;
     char *temp_json_str = ((web_server_context_t *)(req->user_ctx))->scratch;
@@ -1356,6 +1387,10 @@ static esp_err_t config_wifi_get_handler(httpd_req_t *req)
 
     json_len += sprintf(temp_json_str + json_len, "\"sta_ssid\":\"%s\",", (char *)connect_config->ssid);
     json_len += sprintf(temp_json_str + json_len, "\"sta_password\":\"%s\",", (char *)connect_config->password);
+
+    // 添加 AP 配置信息到 JSON 响应
+    json_len += sprintf(temp_json_str + json_len, "\"ap_ssid\":\"%s\",", (char *)ap_config->ssid);
+    json_len += sprintf(temp_json_str + json_len, "\"ap_password\":\"%s\",", (char *)ap_config->password);
 
     switch (connection_info->config_status) {
     case BRIDGE_WIFI_STA_NOT_START:
@@ -1389,6 +1424,7 @@ static esp_err_t config_wifi_get_handler(httpd_req_t *req)
     httpd_resp_send(req, temp_json_str, (temp_json_str == NULL) ? 0 : strlen(temp_json_str));
     return ESP_OK;
 }
+
 
 static esp_err_t accept_wifi_result_post_handler(httpd_req_t *req)
 {
