@@ -902,15 +902,13 @@ static void esp_web_update_ap_config(wifi_ap_config_t *ap_conf)
 
 static wifi_ap_config_t *esp_web_get_ap_config(void)
 {
-    wifi_ap_config_t *ap_config = &s_wifi_ap_config;
-    memset(ap_config, 0, sizeof(wifi_ap_config_t));
-
     // 将全局变量中的值复制到配置结构体中
-    strncpy((char *)ap_config->ssid, CONFIG_BRIDGE_SOFTAP_SSID, sizeof(ap_config->ssid) - 1);
-    strncpy((char *)ap_config->password, CONFIG_BRIDGE_SOFTAP_PASSWORD, sizeof(ap_config->password) - 1);
+    strncpy((char *)s_wifi_ap_config.ssid, CONFIG_BRIDGE_SOFTAP_SSID, sizeof(s_wifi_ap_config.ssid));
+    strncpy((char *)s_wifi_ap_config.password, CONFIG_BRIDGE_SOFTAP_PASSWORD, sizeof(s_wifi_ap_config.password));
 
     return &s_wifi_ap_config;
 }
+
 
 static void esp_web_clear_ap_config(void)
 {
