@@ -104,11 +104,6 @@ typedef struct {
     uint8_t password[65];
 } wifi_sta_connect_config_t;
 
-typedef struct {
-    uint8_t ssid[33];
-    uint8_t password[65];
-} wifi_ap_config_t;
-
 typedef enum {
     BRIDGE_WIFI_STA_NOT_START = 0x0,
     BRIDGE_WIFI_STA_CONFIG_DONE = 0x1,
@@ -1361,6 +1356,72 @@ error_handle:
     return ESP_FAIL;
 }
 
+static esp_err_t config_wifi_ap_post_handler(httpd_req_t *req)
+{
+    char *buf = ((web_server_context_t *)(req->user_ctx))->scratch;
+    wifi_ap_config_t ap_config = { 0 }; // 新建一个结构体保存AP的SSID和密码
+    int str_len = 0;
+
+    memset(buf, '\0', BRIDGE_WEB_SCRATCH_BUFSIZE * sizeof(char));
+
+    if (recv_post_data(req, buf) != ESP_OK) {
+        esp_web_response_error(req, HTTPD_500);
+        ESP_LOGE(TAG, "recv post data error");
+        return ESP_FAIL;
+    }
+
+    str_len = esp_web_find_arg(buf, "ap_ssid", (char *)&ap_config.ssid, sizeof(ap_config.ssid) - 1);
+
+    if (str_len == -1) {
+        ESP_LOGE(TAG, "AP SSID is abnormal");
+        esp_web_response_error(req, HTTPD_400);
+        return ESP_FAIL;
+    }
+
+    str_len = esp_web_find_arg(buf, "ap_password", (char *)&ap_config.password, sizeof(ap_config.password) - 1);
+
+    if (str_len == -1) {
+        ESP_LOGE(TAG, "AP password is abnormal");
+        esp_web_response_error(req, HTTPD_400);
+        return ESP_FAIL;
+    }
+
+    // 在此处保存AP的SSID和密码到NVS或其他存储位置
+    // 下面是保存到NVS的示例代码，您可以根据需要修改
+
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    if (err == ESP_OK) {
+        err = nvs_set_str(nvs_handle, "ap_ssid", ap_config.ssid);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error setting AP SSID in NVS");
+        }
+
+        err = nvs_set_str(nvs_handle, "ap_password", ap_config.password);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error setting AP password in NVS");
+        }
+
+        err = nvs_commit(nvs_handle);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error committing NVS");
+        }
+        nvs_close(nvs_handle);
+    } else {
+        ESP_LOGE(TAG, "Error opening NVS");
+    }
+
+    esp_web_response_ok(req);
+
+    /// 在这里添加您的处理逻辑，例如重启设备或应用新的AP配置
+    ESP_LOGI(TAG, "Saving AP configuration and Restarting the device...");
+    // 在此处添加您的逻辑，例如重启设备
+    esp_restart();
+
+    return ESP_OK;
+}
+
+
 /* Simple handler for WiFi_info_get handler */
 static esp_err_t config_wifi_get_handler(httpd_req_t *req)
 {
@@ -1724,6 +1785,7 @@ static esp_err_t start_web_server(const char *base_path, uint16_t server_port)
     httpd_uri_t httpd_uri_array[] = {
         {"/getstainfo", HTTP_GET, config_wifi_get_handler, s_web_context},
         {"/setstainfo", HTTP_POST, config_wifi_post_handler, s_web_context},
+        {"/setapinfo", HTTP_POST, config_wifi_ap_post_handler, s_web_context},
         {"/getresult", HTTP_POST, accept_wifi_result_post_handler, s_web_context},
         {"/getaprecord", HTTP_GET, ap_record_get_handler, s_web_context},
         {"/getotainfo", HTTP_GET, ota_info_get_handler, s_web_context},
