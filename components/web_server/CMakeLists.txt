@@ -1,5 +1,5 @@
 set(require_components vfs esp_http_client esp_https_ota json freertos spiffs
-    bootloader_support app_update wpa_supplicant spi_flash esp_http_server)
+    bootloader_support app_update wpa_supplicant spi_flash esp_http_server nvs_flash)
 
 list(APPEND require_components iot_bridge)
 

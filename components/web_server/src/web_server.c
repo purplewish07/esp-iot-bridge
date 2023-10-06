@@ -15,6 +15,8 @@
 #include <time.h>
 #include <sys/queue.h>
 
+#include "nvs.h"
+#include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 #include "freertos/event_groups.h"
@@ -890,11 +892,6 @@ static void esp_web_response_error(httpd_req_t *req, const char *status)
     httpd_resp_send(req, temp_str, strlen(temp_str));
 }
 
-static void esp_web_update_ap_config(wifi_ap_config_t *ap_conf)
-{
-    memcpy(&s_wifi_ap_config, ap_conf, sizeof(wifi_ap_config_t));
-}
-
 static wifi_ap_config_t *esp_web_get_ap_config(void)
 {
     nvs_handle_t nvs_handle;
@@ -920,10 +917,15 @@ static wifi_ap_config_t *esp_web_get_ap_config(void)
     return &s_wifi_ap_config;
 }
 
-static void esp_web_clear_ap_config(void)
-{
-    memset(&s_wifi_ap_config, 0x0, sizeof(wifi_ap_config_t));
-}
+// static void esp_web_update_ap_config(wifi_ap_config_t *ap_conf)
+// {
+//     memcpy(&s_wifi_ap_config, ap_conf, sizeof(wifi_ap_config_t));
+// }
+
+// static void esp_web_clear_ap_config(void)
+// {
+//     memset(&s_wifi_ap_config, 0x0, sizeof(wifi_ap_config_t));
+// }
 
 static void esp_web_update_sta_connect_config(wifi_sta_connect_config_t *connect_conf)
 {
@@ -1407,12 +1409,12 @@ static esp_err_t config_wifi_ap_post_handler(httpd_req_t *req)
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
     if (err == ESP_OK) {
-        err = nvs_set_str(nvs_handle, "ap_ssid", ap_config.ssid);
+        err = nvs_set_str(nvs_handle, "ap_ssid", (const char*)ap_config.ssid);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Error setting AP SSID in NVS");
         }
 
-        err = nvs_set_str(nvs_handle, "ap_password", ap_config.password);
+        err = nvs_set_str(nvs_handle, "ap_password", (const char*)ap_config.password);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Error setting AP password in NVS");
         }

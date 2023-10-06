@@ -101,7 +101,7 @@ static void esp_bridge_create_button(void)
     iot_button_register_cb(g_btns[0], BUTTON_LONG_PRESS_START, button_long_press_start_cb, 0);
 }
 
-//prepare
+/*prepare
 static void button_press_up_cb(void *hardware_data, void *usr_data)
 {
     ESP_LOGI(TAG, "BTN: BUTTON_PRESS_UP");
@@ -132,7 +132,7 @@ static void button_press_up_cb(void *hardware_data, void *usr_data)
         esp_restart();
     }
 }
-
+*/
 
 void app_main(void)
 {
