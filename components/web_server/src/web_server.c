@@ -897,13 +897,28 @@ static void esp_web_update_ap_config(wifi_ap_config_t *ap_conf)
 
 static wifi_ap_config_t *esp_web_get_ap_config(void)
 {
-    // 将全局变量中的值复制到配置结构体中
-    strncpy((char *)s_wifi_ap_config.ssid, CONFIG_BRIDGE_SOFTAP_SSID, sizeof(s_wifi_ap_config.ssid));
-    strncpy((char *)s_wifi_ap_config.password, CONFIG_BRIDGE_SOFTAP_PASSWORD, sizeof(s_wifi_ap_config.password));
-
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("storage", NVS_READONLY, &nvs_handle);
+    
+    if (err == ESP_OK) {
+        size_t ssid_size = sizeof(s_wifi_ap_config.ssid);
+        err = nvs_get_str(nvs_handle, "ap_ssid", (char *)s_wifi_ap_config.ssid, &ssid_size);
+        
+        if (err == ESP_OK) {
+            size_t password_size = sizeof(s_wifi_ap_config.password);
+            err = nvs_get_str(nvs_handle, "ap_password", (char *)s_wifi_ap_config.password, &password_size);
+            
+            if (err != ESP_OK) {
+                // 如果没有获取到密码，将密码设置为空字符串
+                s_wifi_ap_config.password[0] = '\0';
+            }
+        }
+        
+        nvs_close(nvs_handle);
+    }
+    
     return &s_wifi_ap_config;
 }
-
 
 static void esp_web_clear_ap_config(void)
 {
@@ -1372,8 +1387,8 @@ static esp_err_t config_wifi_ap_post_handler(httpd_req_t *req)
 
     str_len = esp_web_find_arg(buf, "ap_ssid", (char *)&ap_config.ssid, sizeof(ap_config.ssid) - 1);
 
-    if (str_len == -1) {
-        ESP_LOGE(TAG, "AP SSID is abnormal");
+    if (str_len == -1 || strlen((char *)ap_config.ssid) == 0) {
+        ESP_LOGE(TAG, "AP SSID is abnormal or empty");
         esp_web_response_error(req, HTTPD_400);
         return ESP_FAIL;
     }
@@ -1420,6 +1435,8 @@ static esp_err_t config_wifi_ap_post_handler(httpd_req_t *req)
 
     return ESP_OK;
 }
+
+
 
 
 /* Simple handler for WiFi_info_get handler */
@@ -1785,7 +1802,9 @@ static esp_err_t start_web_server(const char *base_path, uint16_t server_port)
     httpd_uri_t httpd_uri_array[] = {
         {"/getstainfo", HTTP_GET, config_wifi_get_handler, s_web_context},
         {"/setstainfo", HTTP_POST, config_wifi_post_handler, s_web_context},
+#if defined(CONFIG_BRIDGE_DATA_FORWARDING_NETIF_SOFTAP)        
         {"/setapinfo", HTTP_POST, config_wifi_ap_post_handler, s_web_context},
+#endif
         {"/getresult", HTTP_POST, accept_wifi_result_post_handler, s_web_context},
         {"/getaprecord", HTTP_GET, ap_record_get_handler, s_web_context},
         {"/getotainfo", HTTP_GET, ota_info_get_handler, s_web_context},

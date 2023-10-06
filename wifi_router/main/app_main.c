@@ -164,7 +164,13 @@ void app_main(void)
         // 如果无法从NVS中获取，使用默认值
         strcpy((char *)ap_config.ssid, CONFIG_BRIDGE_SOFTAP_SSID);
         strcpy((char *)ap_config.password, CONFIG_BRIDGE_SOFTAP_PASSWORD);
+    } else {
+        // 如果没有获取到密码，将密码设置为空字符串
+        if (strlen((const char *)ap_config.password) == 0) {
+            ap_config.password[0] = '\0';
+        }
     }
+
     // 不管是否成功获取NVS值，只需调用一次 esp_bridge_wifi_set
     esp_bridge_wifi_set(WIFI_MODE_AP, (const char *)ap_config.ssid, (const char *)ap_config.password, NULL);
     // esp_bridge_wifi_set(WIFI_MODE_AP, CONFIG_BRIDGE_SOFTAP_SSID, CONFIG_BRIDGE_SOFTAP_PASSWORD, NULL);
