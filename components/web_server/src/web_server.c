@@ -909,13 +909,22 @@ static wifi_ap_config_t *esp_web_get_ap_config(void)
                 // 如果没有获取到密码，将密码设置为空字符串
                 s_wifi_ap_config.password[0] = '\0';
             }
+        } else {
+            // 如果没有获取到 SSID，设置默认的 SSID 和密码
+            strcpy((char *)s_wifi_ap_config.ssid, CONFIG_BRIDGE_SOFTAP_SSID);
+            strcpy((char *)s_wifi_ap_config.password, CONFIG_BRIDGE_SOFTAP_PASSWORD);
         }
         
         nvs_close(nvs_handle);
+    } else {
+        // 如果打开 NVS 失败，设置默认的 SSID 和密码
+        strcpy((char *)s_wifi_ap_config.ssid, CONFIG_BRIDGE_SOFTAP_SSID);
+        strcpy((char *)s_wifi_ap_config.password, CONFIG_BRIDGE_SOFTAP_PASSWORD);
     }
     
     return &s_wifi_ap_config;
 }
+
 
 // static void esp_web_update_ap_config(wifi_ap_config_t *ap_conf)
 // {
@@ -1384,23 +1393,21 @@ static esp_err_t config_wifi_ap_post_handler(httpd_req_t *req)
     if (recv_post_data(req, buf) != ESP_OK) {
         esp_web_response_error(req, HTTPD_500);
         ESP_LOGE(TAG, "recv post data error");
-        return ESP_FAIL;
+        goto error_handle;
     }
 
     str_len = esp_web_find_arg(buf, "ap_ssid", (char *)&ap_config.ssid, sizeof(ap_config.ssid) - 1);
 
     if (str_len == -1 || strlen((char *)ap_config.ssid) == 0) {
         ESP_LOGE(TAG, "AP SSID is abnormal or empty");
-        esp_web_response_error(req, HTTPD_400);
-        return ESP_FAIL;
+        goto error_handle;
     }
 
     str_len = esp_web_find_arg(buf, "ap_password", (char *)&ap_config.password, sizeof(ap_config.password) - 1);
 
     if (str_len == -1) {
         ESP_LOGE(TAG, "AP password is abnormal");
-        esp_web_response_error(req, HTTPD_400);
-        return ESP_FAIL;
+        goto error_handle;
     }
 
     // 在此处保存AP的SSID和密码到NVS或其他存储位置
@@ -1428,14 +1435,25 @@ static esp_err_t config_wifi_ap_post_handler(httpd_req_t *req)
         ESP_LOGE(TAG, "Error opening NVS");
     }
 
-    esp_web_response_ok(req);
+    // 发送HTTP 302重定向响应
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "/"); // 将客户端重定向到
 
+    // 不要立即重启，让客户端处理重定向
+    vTaskDelay(pdMS_TO_TICKS(1000)); // 延迟1秒钟以确保响应被发送
+
+    esp_web_response_ok(req);
+    vTaskDelay(pdMS_TO_TICKS(2000)); // 2000毫秒 = 2秒
     /// 在这里添加您的处理逻辑，例如重启设备或应用新的AP配置
     ESP_LOGI(TAG, "Saving AP configuration and Restarting the device...");
     // 在此处添加您的逻辑，例如重启设备
     esp_restart();
 
     return ESP_OK;
+
+error_handle:
+    esp_web_response_error(req, HTTPD_400);
+    return ESP_FAIL;
 }
 
 
