@@ -14,3 +14,13 @@ In the [examples](examples) directory, demos of some common application scenario
 - [examples/4g_hotspot](examples/4g_hotspot): ESP-IoT-Bridge device can be equipped with a mobile network module with a SIM card and then convert the cellular network into a Wi-Fi signal. The surrounding smart devices can connect to the hotspot from the ESP-IoT-Bridge device to gain Internet access.
 - [examples/4g_nic](examples/4g_nic)：ESP-IoT-Bridge device can be equipped with a mobile network module with a SIM card. After the network module is connected to the Internet, the PC or MCU can be connected to it through the network interface (ETH/SPI/SDIO) to gain Internet access.
 
+# 編譯環境 ESP-IDF 5.0
+https://github.com/espressif/idf-installer/releases/download/offline-5.0.4/esp-idf-tools-setup-offline-5.0.4.exe
+
+# 安裝ESP-IDF後 打開桌面的 ESP-IDF 5.0 CMD
+cd 到此目錄\wifi_router
+## 下編譯指令
+idf.py build 
+
+## 編譯完成後 下指令燒錄(請檢查USB Port號碼)
+idf.py -p COM4 flash
