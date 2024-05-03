@@ -24,3 +24,13 @@ idf.py build
 
 ## 編譯完成後 下指令燒錄(請檢查USB Port號碼)
 idf.py -p COM4 flash
+
+搜尋AP SSID
+ESP_Bridge_XXXXXX 密碼預設為123456
+web設定頁面 192.168.4.1
+
+有兩個設定頁面(畫面上方選擇/手機板為下方)
+1.WiFi Access Point  (設定AP SSID/PASSWD)
+2.WiFi (橋接其他WIFI 網路)
+
+按壓boot (GPIO0) 7秒可重置設定

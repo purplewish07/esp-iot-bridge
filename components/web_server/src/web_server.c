@@ -1639,6 +1639,46 @@ error_handle:
     return ESP_FAIL;
 }
 
+#if defined(CONFIG_BRIDGE_EXTERNAL_NETIF_ETHERNET)
+static esp_err_t ethernet_ip_get_handler(httpd_req_t *req)
+{
+    esp_netif_t *eth_netif = esp_netif_get_handle_from_ifkey("ETH_DEF"); // 獲取Ethernet網絡介面的句柄
+    esp_netif_ip_info_t ip_info;
+    char *json_str;
+
+    if (eth_netif == NULL) {
+        ESP_LOGE(TAG, "Ethernet interface handle is NULL");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    if (esp_netif_get_ip_info(eth_netif, &ip_info) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get IP address");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    json_str = (char *)malloc(100 * sizeof(char)); // 分配記憶體空間
+    if (json_str == NULL) {
+        ESP_LOGE(TAG, "Memory allocation failed for json string");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    memset(json_str, 0, 100 * sizeof(char));
+    httpd_resp_set_type(req, "application/json");
+
+    // 格式化JSON字符串
+    sprintf(json_str, "{\"ip\":\"" IPSTR "\",\"netmask\":\"" IPSTR "\",\"gateway\":\"" IPSTR "\"}", IP2STR(&ip_info.ip), IP2STR(&ip_info.netmask), IP2STR(&ip_info.gw));
+
+    ESP_LOGI(TAG, "Sending Ethernet IP info: %s", json_str);
+    httpd_resp_send(req, json_str, strlen(json_str)); // 發送JSON回應
+    free(json_str);
+
+    return ESP_OK;
+}
+#endif /* CONFIG_BRIDGE_EXTERNAL_NETIF_ETHERNET */
+
 static esp_err_t ota_info_get_handler(httpd_req_t *req)
 {
     // uint32_t version_uint32 =  esp_at_get_version();
@@ -1807,7 +1847,7 @@ static esp_err_t start_web_server(const char *base_path, uint16_t server_port)
     strlcpy(s_web_context->base_path, base_path, sizeof(s_web_context->base_path));
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 8;
+    config.max_uri_handlers = 9;
     config.max_open_sockets = 7; // It cannot be less than 7.
     config.server_port = server_port;
 
@@ -1825,6 +1865,9 @@ static esp_err_t start_web_server(const char *base_path, uint16_t server_port)
 #if defined(CONFIG_BRIDGE_DATA_FORWARDING_NETIF_SOFTAP)        
         {"/setapinfo", HTTP_POST, config_wifi_ap_post_handler, s_web_context},
 #endif
+#if defined(CONFIG_BRIDGE_EXTERNAL_NETIF_ETHERNET)
+        {"/getethinfo", HTTP_GET, ethernet_ip_get_handler, s_web_context},
+#endif /* CONFIG_BRIDGE_EXTERNAL_NETIF_ETHERNET */
         {"/getresult", HTTP_POST, accept_wifi_result_post_handler, s_web_context},
         {"/getaprecord", HTTP_GET, ap_record_get_handler, s_web_context},
         {"/getotainfo", HTTP_GET, ota_info_get_handler, s_web_context},
